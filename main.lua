@@ -1,16 +1,19 @@
--- Lindo Hub v4.1 - Coleta + Armazenamento + ServerHop + Filtro GUI + Anti-Erro 773
+-- Lindo Hub v5.0 - Coleta + Armazenamento + ServerHop + GUI Movível + Auto ON + Auto Escolha de Time
 -- Feito para Delta Executor / Emulador / PC
 
--- Auto-escolha de time
-pcall(function()
+-- Auto-escolha de time (agora com espera garantida)
+task.spawn(function()
+    repeat wait() until game:IsLoaded()
     local rs = game:GetService("ReplicatedStorage")
     local chooseTeam = rs:WaitForChild("Remotes"):FindFirstChild("ChooseTeam")
-    chooseTeam:FireServer("Pirates")
+    if chooseTeam then
+        chooseTeam:FireServer("Pirates")
+    end
 end)
 
+-- Espera player e character carregar
 repeat wait() until game.Players.LocalPlayer and game.Players.LocalPlayer.Character
 
--- Serviços e variáveis principais
 local Players         = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local HttpService     = game:GetService("HttpService")
@@ -27,10 +30,12 @@ local frame = Instance.new("Frame", gui)
 frame.Size = UDim2.new(0, 400, 0, 220)
 frame.Position = UDim2.new(0, 100, 0, 100)
 frame.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+frame.Active = true
+frame.Draggable = true
 
 local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1, 0, 0, 30)
-title.Text = "🍉 LINDO HUB"
+title.Text = "🍉 LINDO HUB v5.0"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.Font = Enum.Font.SourceSansBold
 title.TextSize = 20
@@ -39,13 +44,13 @@ title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 local ignoreBox = Instance.new("TextBox", frame)
 ignoreBox.Size = UDim2.new(0, 360, 0, 30)
 ignoreBox.Position = UDim2.new(0, 20, 0, 50)
-ignoreBox.PlaceholderText = "Digite frutas para ignorar separadas por vírgula (ex: Chop, Spike)"
+ignoreBox.PlaceholderText = "Digite frutas para ignorar (ex: Chop, Spike)"
 ignoreBox.Text = ""
 ignoreBox.ClearTextOnFocus = false
 ignoreBox.TextWrapped = true
 
--- Função para criar toggles
-function createToggle(text, y)
+-- Botões com estado auto-ON
+function createToggle(text, y, default)
     local label = Instance.new("TextLabel", frame)
     label.Position = UDim2.new(0, 20, 0, y)
     label.Size = UDim2.new(0, 200, 0, 25)
@@ -58,13 +63,13 @@ function createToggle(text, y)
     local toggle = Instance.new("TextButton", frame)
     toggle.Position = UDim2.new(0, 300, 0, y)
     toggle.Size = UDim2.new(0, 50, 0, 25)
-    toggle.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    toggle.Text = "OFF"
+    toggle.BackgroundColor3 = default and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(30, 30, 30)
+    toggle.Text = default and "ON" or "OFF"
     toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
     toggle.Font = Enum.Font.SourceSansBold
     toggle.TextSize = 14
 
-    local state = false
+    local state = default
     toggle.MouseButton1Click:Connect(function()
         state = not state
         toggle.Text = state and "ON" or "OFF"
@@ -74,12 +79,11 @@ function createToggle(text, y)
     return function() return state end
 end
 
--- Estados dos botões
-local isCollecting = createToggle("Coletar frutas", 90)
-local isAutoStore  = createToggle("Auto armazenar frutas", 130)
-local isHopping    = createToggle("Server hopping", 170)
+local isCollecting = createToggle("Coletar frutas", 90, true)
+local isAutoStore  = createToggle("Auto armazenar frutas", 130, true)
+local isHopping    = createToggle("Server hopping", 170, true)
 
--- Obter lista de frutas a ignorar
+-- Funções
 function getIgnoredFruits()
     local text = ignoreBox.Text or ""
     local list = {}
@@ -89,7 +93,6 @@ function getIgnoredFruits()
     return list
 end
 
--- Verifica se tem fruta no mapa
 function CheckFruit()
     for _, v in pairs(Workspace:GetDescendants()) do
         if v:IsA("Tool") and v.Name:lower():find("fruit") then
@@ -99,7 +102,6 @@ function CheckFruit()
     return nil
 end
 
--- Encostar na fruta para pegar
 function TouchFruit(part)
     local char = LocalPlayer.Character
     if not (char and part) then return end
@@ -113,10 +115,8 @@ function TouchFruit(part)
     firetouchinterest(hrp, part, 1)
 end
 
--- Controle de servidores já visitados
 local visitedServers = {}
 
--- Obtem servidores válidos
 function GetServers()
     local servers = {}
     local cursor = ""
@@ -145,7 +145,6 @@ function GetServers()
     return servers
 end
 
--- Troca para um servidor válido
 function ServerHop()
     local servers = GetServers()
     if #servers > 0 then
@@ -155,7 +154,7 @@ function ServerHop()
     end
 end
 
--- Loop principal do sistema
+-- Loop principal
 task.spawn(function()
     while true do
         if isCollecting() then
