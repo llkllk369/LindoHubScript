@@ -1,4 +1,4 @@
--- Lindo Hub v5.3 - Todas melhorias incluídas
+-- Lindo Hub v5.3 - Corrigido
 -- Coleta + Armazenamento + ServerHop + GUI Movível + Auto ON + Auto Escolha de Time + Drag Manual + Logs + Fechar/Minimizar + Salvar Configurações
 
 -- Configurações do usuário
@@ -8,7 +8,8 @@ local Settings = {
 
 -- Auto escolha de time segura
 repeat wait() until game:IsLoaded()
-wait(2)
+wait(5)
+
 local rs = game:GetService("ReplicatedStorage")
 local chooseTeam = rs:WaitForChild("Remotes"):FindFirstChild("ChooseTeam")
 pcall(function()
@@ -29,7 +30,7 @@ local ConfigFile = "LindoHubSettings.txt"
 
 -- Carregar configurações salvas
 local savedIgnoreList = ""
-if isfile and isfile(ConfigFile) then
+if typeof(isfile) == "function" and isfile(ConfigFile) then
     local data = readfile(ConfigFile)
     if data then
         savedIgnoreList = data
@@ -37,8 +38,11 @@ if isfile and isfile(ConfigFile) then
 end
 
 -- GUI
-local gui = Instance.new("ScreenGui", game.CoreGui)
+local gui = Instance.new("ScreenGui")
 gui.Name = "LindoHub"
+pcall(function()
+    gui.Parent = game:GetService("CoreGui")
+end)
 
 local frame = Instance.new("Frame", gui)
 frame.Size = UDim2.new(0, 400, 0, 220)
@@ -89,7 +93,8 @@ title.Font = Enum.Font.SourceSansBold
 title.TextSize = 20
 title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 title.Position = UDim2.new(0, 0, 0, 0)
-\-- Botão fechar
+
+-- Botão fechar
 local closeBtn = Instance.new("TextButton", frame)
 closeBtn.Size = UDim2.new(0, 30, 0, 30)
 closeBtn.Position = UDim2.new(1, -30, 0, 0)
@@ -99,7 +104,8 @@ closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 closeBtn.MouseButton1Click:Connect(function()
     gui:Destroy()
 end)
-\-- Caixa de texto para ignorar frutas
+
+-- Caixa de texto para ignorar frutas
 local ignoreBox = Instance.new("TextBox", frame)
 ignoreBox.Size = UDim2.new(0, 360, 0, 30)
 ignoreBox.Position = UDim2.new(0, 20, 0, 50)
@@ -108,7 +114,9 @@ ignoreBox.Text = savedIgnoreList
 ignoreBox.ClearTextOnFocus = false
 ignoreBox.TextWrapped = true
 ignoreBox.FocusLost:Connect(function()
-    if writefile then writefile(ConfigFile, ignoreBox.Text) end
+    if typeof(writefile) == "function" then
+        writefile(ConfigFile, ignoreBox.Text)
+    end
 end)
 
 -- Criar toggles
@@ -171,9 +179,13 @@ function TouchFruit(part)
     if not hrp then return end
     hrp.CFrame = CFrame.new(part.Position + Vector3.new(0, 3, 0))
     wait(0.5)
-    firetouchinterest(hrp, part, 0)
-    wait(0.1)
-    firetouchinterest(hrp, part, 1)
+    if typeof(firetouchinterest) == "function" then
+        firetouchinterest(hrp, part, 0)
+        wait(0.1)
+        firetouchinterest(hrp, part, 1)
+    else
+        warn("⚠️ Seu executor não suporta firetouchinterest.")
+    end
 end
 
 local visitedServers = {}
