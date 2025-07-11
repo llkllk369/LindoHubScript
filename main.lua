@@ -8,7 +8,7 @@ local Settings = {
 
 -- AutoExec para reiniciar após teleport (Delta/Synapse)
 if queue_on_teleport then
-    queue_on_teleport("loadstring(game:HttpGet('COLOQUE_AQUI_O_SEU_LINK_RAW'))()")
+    queue_on_teleport("loadstring(game:HttpGet('https://raw.githubusercontent.com/llkllk369/LindoHubScript/refs/heads/main/main.lua'))()")
 end
 
 -- Auto escolha de time segura
