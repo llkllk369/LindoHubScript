@@ -1,26 +1,40 @@
--- Lindo Hub v5.0 - Coleta + Armazenamento + ServerHop + GUI Movível + Auto ON + Auto Escolha de Time
--- Feito para Delta Executor / Emulador / PC
+-- Lindo Hub v5.3 - Todas melhorias incluídas
+-- Coleta + Armazenamento + ServerHop + GUI Movível + Auto ON + Auto Escolha de Time + Drag Manual + Logs + Fechar/Minimizar + Salvar Configurações
 
--- Auto-escolha de time (agora com espera garantida)
-task.spawn(function()
-    repeat wait() until game:IsLoaded()
-    local rs = game:GetService("ReplicatedStorage")
-    local chooseTeam = rs:WaitForChild("Remotes"):FindFirstChild("ChooseTeam")
-    if chooseTeam then
-        chooseTeam:FireServer("Pirates")
-    end
+-- Configurações do usuário
+local Settings = {
+    JoinTeam = "Pirates" -- ou "Marines"
+}
+
+-- Auto escolha de time segura
+repeat wait() until game:IsLoaded()
+wait(2)
+local rs = game:GetService("ReplicatedStorage")
+local chooseTeam = rs:WaitForChild("Remotes"):FindFirstChild("ChooseTeam")
+pcall(function()
+    chooseTeam:FireServer(Settings.JoinTeam)
 end)
 
--- Espera player e character carregar
 repeat wait() until game.Players.LocalPlayer and game.Players.LocalPlayer.Character
 
-local Players         = game:GetService("Players")
+local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
-local HttpService     = game:GetService("HttpService")
-local Workspace       = game:GetService("Workspace")
-local LocalPlayer     = Players.LocalPlayer
-local placeId         = game.PlaceId
-local currentJobId    = game.JobId
+local HttpService = game:GetService("HttpService")
+local Workspace = game:GetService("Workspace")
+local UIS = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local placeId = game.PlaceId
+local currentJobId = game.JobId
+local ConfigFile = "LindoHubSettings.txt"
+
+-- Carregar configurações salvas
+local savedIgnoreList = ""
+if isfile and isfile(ConfigFile) then
+    local data = readfile(ConfigFile)
+    if data then
+        savedIgnoreList = data
+    end
+end
 
 -- GUI
 local gui = Instance.new("ScreenGui", game.CoreGui)
@@ -28,28 +42,76 @@ gui.Name = "LindoHub"
 
 local frame = Instance.new("Frame", gui)
 frame.Size = UDim2.new(0, 400, 0, 220)
-frame.Position = UDim2.new(0, 100, 0, 100)
+frame.Position = UDim2.new(0.3, 0, 0.3, 0)
 frame.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 frame.Active = true
-frame.Draggable = true
 
+-- Drag manual
+local dragging, dragInput, dragStart, startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+frame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
+
+-- Header e botões extras
 local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1, 0, 0, 30)
-title.Text = "🍉 LINDO HUB v5.0"
+title.Size = UDim2.new(1, -60, 0, 30)
+title.Text = "🍉 LINDO HUB"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.Font = Enum.Font.SourceSansBold
 title.TextSize = 20
 title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-
+title.Position = UDim2.new(0, 0, 0, 0)
+\-- Botão fechar
+local closeBtn = Instance.new("TextButton", frame)
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -30, 0, 0)
+closeBtn.Text = "X"
+closeBtn.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn.MouseButton1Click:Connect(function()
+    gui:Destroy()
+end)
+\-- Caixa de texto para ignorar frutas
 local ignoreBox = Instance.new("TextBox", frame)
 ignoreBox.Size = UDim2.new(0, 360, 0, 30)
 ignoreBox.Position = UDim2.new(0, 20, 0, 50)
-ignoreBox.PlaceholderText = "Digite frutas para ignorar (ex: Chop, Spike)"
-ignoreBox.Text = ""
+ignoreBox.PlaceholderText = "Digite frutas para ignorar separadas por vírgula (ex: Chop, Spike)"
+ignoreBox.Text = savedIgnoreList
 ignoreBox.ClearTextOnFocus = false
 ignoreBox.TextWrapped = true
+ignoreBox.FocusLost:Connect(function()
+    if writefile then writefile(ConfigFile, ignoreBox.Text) end
+end)
 
--- Botões com estado auto-ON
+-- Criar toggles
 function createToggle(text, y, default)
     local label = Instance.new("TextLabel", frame)
     label.Position = UDim2.new(0, 20, 0, y)
@@ -107,7 +169,6 @@ function TouchFruit(part)
     if not (char and part) then return end
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
-
     hrp.CFrame = CFrame.new(part.Position + Vector3.new(0, 3, 0))
     wait(0.5)
     firetouchinterest(hrp, part, 0)
@@ -142,6 +203,7 @@ function GetServers()
         wait(0.2)
     until (#servers >= 5 or cursor == nil or tries >= 5)
 
+    print("[✳] Servidores encontrados para hop: ", #servers)
     return servers
 end
 
@@ -150,7 +212,10 @@ function ServerHop()
     if #servers > 0 then
         local chosen = servers[math.random(1, #servers)]
         visitedServers[chosen] = true
+        print("[⚡] Trocando para servidor:", chosen)
         TeleportService:TeleportToPlaceInstance(placeId, chosen, LocalPlayer)
+    else
+        warn("[⚠] Não encontrou servidores para trocar!")
     end
 end
 
