@@ -1,28 +1,35 @@
 -- Lindo Hub v5.3 - Corrigido e SUPREMO
--- Coleta + Armazenamento + ServerHop Aprimorado + GUI Movível + Auto ON + Auto Escolha de Time + Drag Manual + Logs + Fechar/Minimizar + Salvar Configurações + AutoExec
+-- Coleta + Armazenamento + ServerHop Aprimorado + GUI Movível + Auto ON + AutoEscolha de Time + AutoExec Permanente + Drag Manual + Logs + Fechar/Minimizar + Salvar Configurações
 
 -- Configurações do usuário
 local Settings = {
     JoinTeam = "Pirates" -- ou "Marines"
 }
 
--- AutoExec para reiniciar após teleport (Delta/Synapse)
+-- ✅ AutoExec Permanente (a cada teleport, ele se reinicia)
 if queue_on_teleport then
     queue_on_teleport("loadstring(game:HttpGet('https://raw.githubusercontent.com/llkllk369/LindoHubScript/refs/heads/main/main.lua'))()")
 end
 
--- Auto escolha de time segura
+-- ✅ Esperar o jogo carregar e escolher o time automaticamente (tentando até funcionar)
 repeat wait() until game:IsLoaded()
 wait(5)
 
 local rs = game:GetService("ReplicatedStorage")
-local chooseTeam = rs:WaitForChild("Remotes"):FindFirstChild("ChooseTeam")
-pcall(function()
-    chooseTeam:FireServer(Settings.JoinTeam)
+task.spawn(function()
+    local chooseTeam = rs:WaitForChild("Remotes"):WaitForChild("ChooseTeam")
+    while not game.Players.LocalPlayer.Team or game.Players.LocalPlayer.Team.Name == "Neutral" do
+        pcall(function()
+            chooseTeam:FireServer(Settings.JoinTeam)
+        end)
+        wait(1)
+    end
 end)
 
+-- Esperar o personagem spawnar
 repeat wait() until game.Players.LocalPlayer and game.Players.LocalPlayer.Character
 
+-- Serviços
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
@@ -32,7 +39,7 @@ local LocalPlayer = Players.LocalPlayer
 local placeId = game.PlaceId
 local ConfigFile = "LindoHubSettings.txt"
 
--- Carregar configurações salvas
+-- Carregar configurações do arquivo
 local savedIgnoreList = ""
 if typeof(isfile) == "function" and isfile(ConfigFile) then
     local data = readfile(ConfigFile)
@@ -41,12 +48,10 @@ if typeof(isfile) == "function" and isfile(ConfigFile) then
     end
 end
 
--- GUI
+-- Criar GUI
 local gui = Instance.new("ScreenGui")
 gui.Name = "LindoHub"
-pcall(function()
-    gui.Parent = game:GetService("CoreGui")
-end)
+pcall(function() gui.Parent = game:GetService("CoreGui") end)
 
 local frame = Instance.new("Frame", gui)
 frame.Size = UDim2.new(0, 400, 0, 220)
@@ -54,41 +59,30 @@ frame.Position = UDim2.new(0.3, 0, 0.3, 0)
 frame.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 frame.Active = true
 
--- Drag manual
+-- Drag Manual
 local dragging, dragInput, dragStart, startPos
-
 local function update(input)
     local delta = input.Position - dragStart
     frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 end
-
 frame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = true
         dragStart = input.Position
         startPos = frame.Position
-
         input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
         end)
     end
 end)
-
 frame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
-    end
+    if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
 end)
-
 UIS.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        update(input)
-    end
+    if input == dragInput and dragging then update(input) end
 end)
 
--- Header e botões extras
+-- Header
 local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1, -60, 0, 30)
 title.Text = "🍉 LINDO HUB"
@@ -105,15 +99,13 @@ closeBtn.Position = UDim2.new(1, -30, 0, 0)
 closeBtn.Text = "X"
 closeBtn.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
 closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeBtn.MouseButton1Click:Connect(function()
-    gui:Destroy()
-end)
+closeBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
 
--- Caixa de texto para ignorar frutas
+-- Caixa de ignorar frutas
 local ignoreBox = Instance.new("TextBox", frame)
 ignoreBox.Size = UDim2.new(0, 360, 0, 30)
 ignoreBox.Position = UDim2.new(0, 20, 0, 50)
-ignoreBox.PlaceholderText = "Digite frutas para ignorar separadas por vírgula (ex: Chop, Spike)"
+ignoreBox.PlaceholderText = "Digite frutas para ignorar (ex: Chop, Spike)"
 ignoreBox.Text = savedIgnoreList
 ignoreBox.ClearTextOnFocus = false
 ignoreBox.TextWrapped = true
@@ -130,8 +122,6 @@ function createToggle(text, y, default)
     label.Size = UDim2.new(0, 200, 0, 25)
     label.Text = text
     label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.Font = Enum.Font.SourceSans
-    label.TextSize = 16
     label.BackgroundTransparency = 1
 
     local toggle = Instance.new("TextButton", frame)
@@ -140,8 +130,6 @@ function createToggle(text, y, default)
     toggle.BackgroundColor3 = default and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(30, 30, 30)
     toggle.Text = default and "ON" or "OFF"
     toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    toggle.Font = Enum.Font.SourceSansBold
-    toggle.TextSize = 14
 
     local state = default
     toggle.MouseButton1Click:Connect(function()
@@ -187,44 +175,32 @@ function TouchFruit(part)
         firetouchinterest(hrp, part, 0)
         wait(0.1)
         firetouchinterest(hrp, part, 1)
-    else
-        warn("Seu executor não suporta firetouchinterest.")
     end
 end
 
 -- Server Hop aprimorado
 local function Hop()
     local PlaceID = game.PlaceId
-    local AllIDs = {}
-    local foundAnything = ""
-    local actualHour = os.date("!*t").hour
+    local AllIDs, foundAnything = {}, ""
 
     local function TPReturner()
-        local Site
-        if foundAnything == "" then
-            Site = HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100'))
-        else
-            Site = HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100&cursor=' .. foundAnything))
+        local url = "https://games.roblox.com/v1/games/"..PlaceID.."/servers/Public?sortOrder=Asc&limit=100"
+        if foundAnything ~= "" then
+            url = url.."&cursor="..foundAnything
         end
 
-        if Site.nextPageCursor and Site.nextPageCursor ~= "null" and Site.nextPageCursor ~= nil then
-            foundAnything = Site.nextPageCursor
-        end
+        local Site = HttpService:JSONDecode(game:HttpGet(url))
+        foundAnything = Site.nextPageCursor or ""
 
         for _, v in pairs(Site.data) do
             local id = tostring(v.id)
             local possible = true
-
             if tonumber(v.maxPlayers) > tonumber(v.playing) then
                 for _, existing in pairs(AllIDs) do
-                    if id == existing then
-                        possible = false
-                        break
-                    end
+                    if id == existing then possible = false break end
                 end
                 if possible then
                     table.insert(AllIDs, id)
-                    wait()
                     TeleportService:TeleportToPlaceInstance(PlaceID, id, LocalPlayer)
                     wait(4)
                 end
