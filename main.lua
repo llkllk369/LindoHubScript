@@ -1,5 +1,5 @@
--- Lindo Hub v5.3 - Corrigido
--- Coleta + Armazenamento + ServerHop + GUI Movível + Auto ON + Auto Escolha de Time + Drag Manual + Logs + Fechar/Minimizar + Salvar Configurações
+-- Lindo Hub v5.3 - Corrigido e SUPREMO
+-- Coleta + Armazenamento + ServerHop Aprimorado + GUI Movível + Auto ON + Auto Escolha de Time + Drag Manual + Logs + Fechar/Minimizar + Salvar Configurações
 
 -- Configurações do usuário
 local Settings = {
@@ -25,7 +25,6 @@ local Workspace = game:GetService("Workspace")
 local UIS = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local placeId = game.PlaceId
-local currentJobId = game.JobId
 local ConfigFile = "LindoHubSettings.txt"
 
 -- Carregar configurações salvas
@@ -153,7 +152,7 @@ local isCollecting = createToggle("Coletar frutas", 90, true)
 local isAutoStore  = createToggle("Auto armazenar frutas", 130, true)
 local isHopping    = createToggle("Server hopping", 170, true)
 
--- Funções
+-- Funções auxiliares
 function getIgnoredFruits()
     local text = ignoreBox.Text or ""
     local list = {}
@@ -184,50 +183,57 @@ function TouchFruit(part)
         wait(0.1)
         firetouchinterest(hrp, part, 1)
     else
-        warn("⚠️ Seu executor não suporta firetouchinterest.")
+        warn("Seu executor não suporta firetouchinterest.")
     end
 end
 
-local visitedServers = {}
+-- Server Hop aprimorado
+local function Hop()
+    local PlaceID = game.PlaceId
+    local AllIDs = {}
+    local foundAnything = ""
+    local actualHour = os.date("!*t").hour
 
-function GetServers()
-    local servers = {}
-    local cursor = ""
-    local tries = 0
-
-    repeat
-        local url = "https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100&cursor="..cursor
-        local success, result = pcall(function()
-            return HttpService:JSONDecode(game:HttpGet(url))
-        end)
-
-        if success and result and result.data then
-            for _, server in pairs(result.data) do
-                local jobId = server.id
-                if server.playing < server.maxPlayers and jobId ~= currentJobId and not visitedServers[jobId] then
-                    table.insert(servers, jobId)
-                end
-            end
-            cursor = result.nextPageCursor or ""
+    local function TPReturner()
+        local Site
+        if foundAnything == "" then
+            Site = HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100'))
+        else
+            Site = HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100&cursor=' .. foundAnything))
         end
 
-        tries = tries + 1
-        wait(0.2)
-    until (#servers >= 5 or cursor == nil or tries >= 5)
+        if Site.nextPageCursor and Site.nextPageCursor ~= "null" and Site.nextPageCursor ~= nil then
+            foundAnything = Site.nextPageCursor
+        end
 
-    print("[✳] Servidores encontrados para hop: ", #servers)
-    return servers
-end
+        for _, v in pairs(Site.data) do
+            local id = tostring(v.id)
+            local possible = true
 
-function ServerHop()
-    local servers = GetServers()
-    if #servers > 0 then
-        local chosen = servers[math.random(1, #servers)]
-        visitedServers[chosen] = true
-        print("[⚡] Trocando para servidor:", chosen)
-        TeleportService:TeleportToPlaceInstance(placeId, chosen, LocalPlayer)
-    else
-        warn("[⚠] Não encontrou servidores para trocar!")
+            if tonumber(v.maxPlayers) > tonumber(v.playing) then
+                for _, existing in pairs(AllIDs) do
+                    if id == existing then
+                        possible = false
+                        break
+                    end
+                end
+                if possible then
+                    table.insert(AllIDs, id)
+                    wait()
+                    TeleportService:TeleportToPlaceInstance(PlaceID, id, LocalPlayer)
+                    wait(4)
+                end
+            end
+        end
+    end
+
+    while wait() do
+        pcall(function()
+            TPReturner()
+            if foundAnything ~= "" then
+                TPReturner()
+            end
+        end)
     end
 end
 
@@ -246,7 +252,7 @@ task.spawn(function()
                 wait(30)
             elseif isHopping() then
                 wait(15)
-                ServerHop()
+                Hop()
             end
         end
         wait(5)
