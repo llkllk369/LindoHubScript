@@ -1,10 +1,15 @@
 -- Lindo Hub v5.3 - Corrigido e SUPREMO
--- Coleta + Armazenamento + ServerHop Aprimorado + GUI Movível + Auto ON + Auto Escolha de Time + Drag Manual + Logs + Fechar/Minimizar + Salvar Configurações
+-- Coleta + Armazenamento + ServerHop Aprimorado + GUI Movível + Auto ON + Auto Escolha de Time + Drag Manual + Logs + Fechar/Minimizar + Salvar Configurações + AutoExec
 
 -- Configurações do usuário
 local Settings = {
     JoinTeam = "Pirates" -- ou "Marines"
 }
+
+-- AutoExec para reiniciar após teleport (Delta/Synapse)
+if queue_on_teleport then
+    queue_on_teleport("loadstring(game:HttpGet('COLOQUE_AQUI_O_SEU_LINK_RAW'))()")
+end
 
 -- Auto escolha de time segura
 repeat wait() until game:IsLoaded()
